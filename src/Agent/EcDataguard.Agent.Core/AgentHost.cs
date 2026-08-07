@@ -42,10 +42,35 @@ public static class AgentHost
             store.Save(config);
         }
 
+        if (TryGetArg(args, "--monitor-clipboard", out var clipboardArg) && bool.TryParse(clipboardArg, out var monitorClipboard))
+        {
+            config.MonitorClipboard = monitorClipboard;
+            store.Save(config);
+        }
+
+        if (TryGetArg(args, "--monitor-usb", out var usbArg) && bool.TryParse(usbArg, out var monitorUsb))
+        {
+            config.MonitorUsb = monitorUsb;
+            store.Save(config);
+        }
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (string.Equals(args[i], "--monitor-dir", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                config.MonitoredFolders.Add(Path.GetFullPath(args[i + 1]));
+            }
+        }
+        if (config.MonitoredFolders.Count > 0)
+        {
+            store.Save(config);
+        }
+
         builder.Services.AddSingleton(store);
         builder.Services.AddSingleton(config);
         builder.Services.AddSingleton<DatabaseDiscovery>();
         builder.Services.AddSingleton<CommandExecutor>();
+        builder.Services.AddSingleton<Monitoring.ActivityMonitor>();
         builder.Services.AddHttpClient<AgentClient>().ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(30));
         builder.Services.AddHostedService<AgentWorker>();
 

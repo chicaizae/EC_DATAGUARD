@@ -20,6 +20,7 @@ public interface IAppDbContext
     DbSet<Insight> Insights { get; }
     DbSet<AdminAction> AdminActions { get; }
     DbSet<SiemDeliveryLog> SiemDeliveryLogs { get; }
+    DbSet<ScheduledReport> ScheduledReports { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     void SetTenantScope(Guid tenantId);

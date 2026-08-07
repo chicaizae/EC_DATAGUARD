@@ -211,3 +211,88 @@ pre.installer {
     font-size: 12px;
 }
 .panel a { color: var(--accent); }
+
+.page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+.page-head h1 { margin: 0; }
+.head-actions { padding-top: 4px; }
+
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+.kpi {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.kpi-value { font-size: 26px; font-weight: 700; }
+.kpi-label { color: var(--muted); font-size: 12px; }
+.kpi.bad .kpi-value { color: var(--bad); }
+.kpi.warn .kpi-value { color: var(--warn); }
+.kpi.good .kpi-value { color: var(--good); }
+
+.layout-2col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+.layout-2col .panel { margin: 0; }
+
+.coverage .progress {
+    height: 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.coverage .progress span {
+    display: block;
+    height: 100%;
+    background: var(--good);
+}
+
+.mini-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+}
+.mini-stat {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.mini-stat b { font-size: 20px; }
+.mini-stat span { color: var(--muted); font-size: 12px; }
+.mini-stat.good b { color: var(--good); }
+.mini-stat.warn b { color: var(--warn); }
+.mini-stat.bad b { color: var(--bad); }
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+button.mini {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin-right: 6px;
+}
+button.mini.danger { color: var(--bad); }

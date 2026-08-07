@@ -1,0 +1,145 @@
+@page "/reportes"
+@inject ConsoleApiClient api
+
+<PageTitle>Reportes · EC DATAGUARD</PageTitle>
+
+<h1>Reportes programados</h1>
+
+@if (api.Session.IsAuthenticated && api.Session.ScopeTenantId != null)
+{
+    <div class="panel">
+        <h3>Nueva suscripción</h3>
+        <div class="form-row">
+            <div class="field compact">
+                <label>Título</label>
+                <input @bind="nuevoTitulo" placeholder="Ej. Resumen semanal de eventos" />
+            </div>
+            <div class="field compact">
+                <label>Tipo</label>
+                <select @bind="nuevoTipo">
+                    <option value="eventos">Eventos</option>
+                    <option value="insights">Insights</option>
+                </select>
+            </div>
+            <div class="field compact">
+                <label>Hora UTC</label>
+                <input type="number" min="0" max="23" @bind="nuevaHora" />
+            </div>
+            <div class="field compact">
+                <label>Destinatarios (separados por ;)</label>
+                <input @bind="nuevosDestinatarios" placeholder="seguridad@empresa.com; jefe@empresa.com" />
+            </div>
+        </div>
+        @if (error != null) { <p class="error">@error</p> }
+        <button class="primary" @onclick="Crear" disabled="@cargando">@(cargando ? "Guardando..." : "Crear reporte")</button>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Reporte</th>
+                <th>Tipo</th>
+                <th>Hora UTC</th>
+                <th>Destinatarios</th>
+                <th>Estado</th>
+                <th>Último envío</th>
+                <th>Próximo</th>
+                <th>Enviados</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in reportes)
+            {
+                <tr>
+                    <td>@r.Title</td>
+                    <td>@r.ReportType</td>
+                    <td>@r.HourOfDayUtc:00</td>
+                    <td style="word-break:break-all">@r.RecipientsCsv</td>
+                    <td>@(r.Enabled ? "Activo" : "Pausado")</td>
+                    <td>@(r.LastRunUtc?.ToString("g") ?? "-")</td>
+                    <td>@(r.NextRunUtc?.ToString("g") ?? "-")</td>
+                    <td>@r.TotalSent</td>
+                    <td>
+                        <button class="mini" @onclick="@(() => Alternar(r))">@(r.Enabled ? "Pausar" : "Activar")</button>
+                        <button class="mini danger" @onclick="@(() => Eliminar(r))">Eliminar</button>
+                    </td>
+                </tr>
+            }
+            @if (reportes.Count == 0)
+            {
+                <tr><td colspan="9" class="muted">No hay reportes programados para esta empresa.</td></tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="muted">Seleccione primero una empresa.</p>
+}
+
+@code {
+    private List<ReportDto> reportes = new();
+    private string nuevoTitulo = string.Empty;
+    private string nuevoTipo = "eventos";
+    private int nuevaHora = 6;
+    private string nuevosDestinatarios = string.Empty;
+    private string? error;
+    private bool cargando;
+
+    private string BaseReportsPath
+        => $"/api/console/tenants/{api.Session.ScopeTenantId}/reports";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null) return;
+        try
+        {
+            reportes = (await api.GetAsync<List<ReportDto>>(BaseReportsPath)) ?? new();
+        }
+        catch
+        {
+            reportes = new();
+        }
+    }
+
+    private async Task Crear()
+    {
+        cargando = true;
+        error = null;
+        try
+        {
+            await api.PostAsync<CreateReportRequest, ReportDto>(BaseReportsPath,
+                new CreateReportRequest(nuevoTitulo, nuevoTipo, nuevaHora, nuevosDestinatarios));
+            nuevoTitulo = string.Empty;
+            nuevosDestinatarios = string.Empty;
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo crear el reporte: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task Alternar(ReportDto reporte)
+    {
+        await api.PutAsync($"{BaseReportsPath}/{reporte.Id}/enabled", new SetReportEnabledRequest(!reporte.Enabled));
+        await Cargar();
+    }
+
+    private async Task Eliminar(ReportDto report)
+    {
+        await api.DeleteAsync($"{BaseReportsPath}/{report.Id}");
+        await Cargar();
+    }
+}

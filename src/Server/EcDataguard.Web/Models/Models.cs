@@ -92,3 +92,17 @@ public record InstallerInfo(
     string FileName,
     string Command,
     string Token);
+
+public record ReportDto(
+    Guid Id,
+    string Title,
+    string ReportType,
+    int HourOfDayUtc,
+    string RecipientsCsv,
+    bool Enabled,
+    DateTime? LastRunUtc,
+    DateTime? NextRunUtc,
+    int TotalSent);
+
+public record CreateReportRequest(string Title, string ReportType, int HourOfDayUtc, string RecipientsCsv);
+public record SetReportEnabledRequest(bool Enabled);

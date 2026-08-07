@@ -5,6 +5,7 @@ using EcDataguard.Application.Abstractions;
 using EcDataguard.Application.Services;
 using EcDataguard.Infrastructure.EfCore;
 using EcDataguard.Infrastructure.Integrations;
+using EcDataguard.Infrastructure.Reporting;
 using EcDataguard.Infrastructure.Security;
 
 namespace EcDataguard.Infrastructure;
@@ -41,6 +42,12 @@ public static class DependencyInjection
         services.AddSingleton(siem);
         services.AddHttpClient("siem");
         services.AddSingleton<ISiemGateway, HttpSiemGateway>();
+
+        var smtp = configuration.GetSection("ReportMail").Get<SmtpOptions>() ?? new SmtpOptions();
+        services.AddSingleton(smtp);
+        services.AddScoped<IReportMailer, SmtpReportMailer>();
+        services.AddScoped<IReportService, ScheduledReportService>();
+        services.AddHostedService<ReportSchedulerHost>();
 
         services.AddSingleton<IClock, SystemClock>();
 

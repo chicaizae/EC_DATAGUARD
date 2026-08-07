@@ -2,30 +2,52 @@
 @inject ConsoleApiClient api
 @inject NavigationManager nav
 
-<PageTitle>Dashboard Â· EC DATAGUARD</PageTitle>
+<PageTitle>Dashboard · EC DATAGUARD</PageTitle>
 
 @if (!api.Session.IsAuthenticated)
 {
-    <p>Redirigiendo al inicio de sesiÃ³nâ€¦</p>
+    <p>Redirigiendo al inicio de sesión…</p>
 }
 else
 {
-    <h1>Dashboard</h1>
-    <p class="muted">Actualizado: @actualizado</p>
-
-    <div class="cards">
-        <div class="card"><b>@dash.TenantCount</b><span>Empresas</span></div>
-        <div class="card"><b>@dash.OnlineDevices</b><span>Equipos en lÃ­nea</span></div>
-        <div class="card good"><b>@dash.ProtectedDevices</b><span>Protegidos</span></div>
-        <div class="card warn"><b>@dash.DegradedDevices</b><span>Degradados</span></div>
-        <div class="card bad"><b>@dash.UnprotectedDevices</b><span>Sin protecciÃ³n</span></div>
-        <div class="card"><b>@dash.HighInsights</b><span>Insights High</span></div>
-        <div class="card bad"><b>@dash.BlockedEvents</b><span>Bloqueados</span></div>
-        <div class="card"><b>@dash.TotalEvents</b><span>Eventos totales</span></div>
-        <div class="card"><b>@dash.DbArtifacts</b><span>BD descubiertas</span></div>
+    <div class="page-head">
+        <div>
+            <h1>Dashboard</h1>
+            <p class="muted">Actualizado: @actualizado</p>
+        </div>
+        <div class="head-actions">
+            <button class="primary" @onclick="Recargar">Actualizar</button>
+        </div>
     </div>
 
-    <button class="primary" @onclick="Recargar">Actualizar</button>
+    <div class="kpi-row">
+        <div class="kpi"><span class="kpi-value">@dash.TotalEvents</span><span class="kpi-label">Eventos totales</span></div>
+        <div class="kpi bad"><span class="kpi-value">@dash.BlockedEvents</span><span class="kpi-label">Bloqueados</span></div>
+        <div class="kpi"><span class="kpi-value">@dash.OpenInsights</span><span class="kpi-label">Insights abiertos</span></div>
+        <div class="kpi warn"><span class="kpi-value">@dash.HighInsights</span><span class="kpi-label">Alta severidad</span></div>
+        <div class="kpi"><span class="kpi-value">@dash.OnlineDevices</span><span class="kpi-label">Equipos en línea</span></div>
+        <div class="kpi"><span class="kpi-value">@dash.DbArtifacts</span><span class="kpi-label">BD descubiertas</span></div>
+    </div>
+
+    <div class="layout-2col">
+        <div class="panel">
+            <h3>Cobertura de protección</h3>
+            <div class="coverage">
+                <div class="progress"><span style="width:@CoberturaCss%"></span></div>
+                <p class="muted">@CoberturaPct% de los equipos protegidos · @dash.ProtectedDevices protegidos, @dash.DegradedDevices degradados, @dash.UnprotectedDevices sin protección</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Estado general</h3>
+            <div class="mini-grid">
+                <div class="mini-stat"><b>@dash.TenantCount</b><span>Empresas</span></div>
+                <div class="mini-stat good"><b>@dash.ProtectedDevices</b><span>Protegidos</span></div>
+                <div class="mini-stat warn"><b>@dash.DegradedDevices</b><span>Degradados</span></div>
+                <div class="mini-stat bad"><b>@dash.UnprotectedDevices</b><span>Sin protección</span></div>
+            </div>
+        </div>
+    </div>
 }
 
 @code {
@@ -35,6 +57,14 @@ else
     private string DashPath => (api.Session.IsSuperAdmin && api.Session.ScopeTenantId == null)
         ? "/api/console/global"
         : "/api/console/dashboard";
+
+    private int TotalDispositivos => dash.ProtectedDevices + dash.DegradedDevices + dash.UnprotectedDevices;
+
+    private int CoberturaPct => TotalDispositivos == 0
+        ? 0
+        : (int)Math.Round(100d * dash.ProtectedDevices / TotalDispositivos);
+
+    private string CoberturaCss => Math.Clamp(CoberturaPct, 0, 100).ToString();
 
     protected override async Task OnInitializedAsync()
     {

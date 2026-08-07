@@ -82,6 +82,24 @@ public class ConsoleApiClient
         return JsonSerializer.Deserialize<TOut>(await response.Content.ReadAsStringAsync(ct), JsonDefaults.Options);
     }
 
+    public Task<HttpResponseMessage> PutAsync<TIn>(string path, TIn body, CancellationToken ct = default)
+        => SendJsonAsync(HttpMethod.Put, path, body, ct);
+
+    public Task<HttpResponseMessage> DeleteAsync(string path, CancellationToken ct = default)
+        => SendJsonAsync<object?>(HttpMethod.Delete, path, null, ct);
+
+    private async Task<HttpResponseMessage> SendJsonAsync<TIn>(HttpMethod method, string path, TIn? body, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(method, path)
+        {
+            Content = body is null
+                ? null
+                : new StringContent(JsonSerializer.Serialize(body, JsonDefaults.Options), Encoding.UTF8, "application/json")
+        };
+        AttachAuth(request);
+        return await _http.SendAsync(request, ct);
+    }
+
     private void AttachAuth(HttpRequestMessage request)
     {
         if (!string.IsNullOrEmpty(_session.Token))

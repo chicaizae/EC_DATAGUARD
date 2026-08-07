@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Contracts\EcDataguard.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Agent\EcDataguard.Agent.Core\EcDataguard.Agent.Core.csproj" />
     <ProjectReference Include="..\..\src\Server\EcDataguard.Domain\EcDataguard.Domain.csproj" />
     <ProjectReference Include="..\..\src\Server\EcDataguard.Application\EcDataguard.Application.csproj" />
     <ProjectReference Include="..\..\src\Server\EcDataguard.Web\EcDataguard.Web.csproj" />

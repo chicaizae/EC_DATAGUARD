@@ -13,17 +13,21 @@
 
 - [x] Onboarding de agentes por empresa (instalador genera agente específico del tenant,
       token por dispositivo persistido con hash, revocación y reemisión desde consola)
-- [ ] Evaluación de políticas en el agente (Windows: monitoreo de operaciones de archivo
-       y portapapeles/USB; Linux: fanotify/inotify)
+- [ ] Evaluación de políticas en el agente: Windows 🚧 monitoreo listo
+      (FileSystemMonitor con FileSystemWatcher, ClipboardMonitor Win32, UsbMonitor con DriveInfo,
+      clasificación local y envío de eventos DLP vía heartbeat); pendientes: aplicar políticas del
+      servidor en el agente y detección Kernel. Linux (fanotify/inotify) queda como trabajo aparte
 - [x] Clasificación real de contenido: regex + entidades (PII, tarjetas, info financiera)
 - [x] Tipo real de archivo básico (extensión + firmas mágicas comunes)
-- [ ] OCR con Tesseract
+- [ ] OCR con Tesseract — pendiente: requiere binarios nativos (tesseract + traineddata);
+      el pipeline ya acepta ContentScan.Classifications; falta el componente OCR
 - [x] Consola: tablas con filtros y exportación CSV básica para Eventos, Insights y Admin trail
 - [x] Consola: detalle de dispositivos/eventos
 - [x] Consola: exportación XLSX real (Eventos, Insights y Admin trail) (xlsx)
-- [ ] Consola: layouts avanzados
+- [x] Consola: layouts avanzados — Dashboard con tarjetas KPI, cobertura y paneles
 - [x] Insights (severidad + triage) y Admin trail con búsqueda/exportación
-- [ ] Reportes programados (PDF/XLSX) por correo
+- [x] Reportes programados (XLSX) por correo — suscripción en consola, planificador cada min,
+      ReportXlsxBuilder (OOXML nativo), SMTP configurable (ReportMail); PDF queda aparte
 - [x] Integración SIEM: webhook JSON (OCSF) para Insights y Admin trail
 - [x] Licenciamiento por usuario activo y control de consumo
 

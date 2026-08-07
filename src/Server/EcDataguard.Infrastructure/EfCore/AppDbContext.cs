@@ -25,6 +25,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Insight> Insights => Set<Insight>();
     public DbSet<AdminAction> AdminActions => Set<AdminAction>();
     public DbSet<SiemDeliveryLog> SiemDeliveryLogs => Set<SiemDeliveryLog>();
+    public DbSet<ScheduledReport> ScheduledReports => Set<ScheduledReport>();
 
     public Guid? CurrentTenantScope => _tenantScope;
 
@@ -143,6 +144,12 @@ public class AppDbContext : DbContext, IAppDbContext
         {
             e.HasKey(l => l.Id);
             e.HasIndex(l => l.SentUtc);
+        });
+
+        modelBuilder.Entity<ScheduledReport>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => new { r.TenantId, r.Enabled });
         });
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using EcDataguard.Contracts.Agent;
 using EcDataguard.Contracts.Common;
+using EcDataguard.Agent.Monitoring;
 
 namespace EcDataguard.Agent;
 
@@ -13,6 +14,7 @@ public class AgentWorker : BackgroundService
     private readonly DatabaseDiscovery _discovery;
     private readonly AgentClient _client;
     private readonly CommandExecutor _executor;
+    private readonly ActivityMonitor _monitor;
     private readonly ILogger<AgentWorker> _logger;
     private readonly HashSet<string> _knownDatabases = new(StringComparer.OrdinalIgnoreCase);
     private int _delayedFailures = 0;
@@ -22,6 +24,7 @@ public class AgentWorker : BackgroundService
         DatabaseDiscovery discovery,
         AgentClient client,
         CommandExecutor executor,
+        ActivityMonitor monitor,
         ILogger<AgentWorker> logger)
     {
         _store = store;
@@ -29,6 +32,7 @@ public class AgentWorker : BackgroundService
         _discovery = discovery;
         _client = client;
         _executor = executor;
+        _monitor = monitor;
         _logger = logger;
     }
 
@@ -41,6 +45,11 @@ public class AgentWorker : BackgroundService
             _logger.LogError("No se configuró ServerUrl. Use --server http://<host>:8080/api");
             return;
         }
+
+        _monitor.Start(_config);
+        _logger.LogInformation("Monitoreo DLP: clipboard={Clipboard}, usb={Usb}, carpetas={Folders}",
+            _config.MonitorClipboard, _config.MonitorUsb,
+            _config.MonitoredFolders.Count > 0 ? string.Join(", ", _config.MonitoredFolders) : "ninguna");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -116,6 +125,17 @@ public class AgentWorker : BackgroundService
         }
 
         await SendNewDatabaseEventsAsync(databases, ct);
+        await SendMonitoredActivityAsync(ct);
+    }
+
+    private async Task SendMonitoredActivityAsync(CancellationToken ct)
+    {
+        var events = _monitor.Drain();
+        if (events.Count == 0) return;
+
+        var ack = await _client.SendEventsAsync(new EventBatchRequest { Events = events.ToList() }, ct);
+        _logger.LogInformation("Actividad DLP enviada: {Count} eventos (aceptados {Accepted}, rechazados {Rejected}).",
+            events.Count, ack.Accepted, ack.Rejected);
     }
 
     private Task ApplyServerConfigurationAsync(ServerRuntimeConfig? config)

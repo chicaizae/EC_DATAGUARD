@@ -15,6 +15,9 @@ public class AgentConfig
     public bool CollectDatabases { get; set; } = true;
     public bool ScanNetwork { get; set; }
     public bool SophosTest { get; set; }
+    public bool MonitorClipboard { get; set; } = true;
+    public bool MonitorUsb { get; set; } = true;
+    public List<string> MonitoredFolders { get; set; } = new();
 }
 
 public class AgentConfigStore
