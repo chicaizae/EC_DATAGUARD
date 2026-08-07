@@ -13,10 +13,12 @@
 
 - [x] Onboarding de agentes por empresa (instalador genera agente específico del tenant,
       token por dispositivo persistido con hash, revocación y reemisión desde consola)
-- [ ] Evaluación de políticas en el agente: Windows 🚧 monitoreo listo
-      (FileSystemMonitor con FileSystemWatcher, ClipboardMonitor Win32, UsbMonitor con DriveInfo,
-      clasificación local y envío de eventos DLP vía heartbeat); pendientes: aplicar políticas del
-      servidor en el agente y detección Kernel. Linux (fanotify/inotify) queda como trabajo aparte
+- [x] Evaluación de políticas en el agente: Windows
+      (monitoreo con FileSystemMonitor/FileSystemWatcher, ClipboardMonitor Win32, UsbMonitor con DriveInfo,
+      clasificación local y evaluación de políticas del servidor: el agente recibe el PolicySet en el
+      heartbeat, lo aplica localmente (LocalPolicyEngine) y envía su decisión
+      (Blocked/AppliedPolicyId/AppliedAction) que el servidor persiste). Debajo: enforcement Kernel nivel de
+      sistema y Linux (fanotify/inotify) queda como trabajo aparte
 - [x] Clasificación real de contenido: regex + entidades (PII, tarjetas, info financiera)
 - [x] Tipo real de archivo básico (extensión + firmas mágicas comunes)
 - [ ] OCR con Tesseract — pendiente: requiere binarios nativos (tesseract + traineddata);

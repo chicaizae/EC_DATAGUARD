@@ -36,6 +36,13 @@ public static class AgentHost
             store.Save(config);
         }
 
+        if (TryGetArg(args, "--policies-file", out var policiesFile) && File.Exists(policiesFile))
+        {
+            store.SavePolicies(File.ReadAllText(policiesFile));
+            config.PolicySetVersion = 1;
+            store.Save(config);
+        }
+
         if (TryGetArg(args, "--device-id", out var deviceId) && Guid.TryParse(deviceId, out var parsed))
         {
             config.DeviceId = parsed;

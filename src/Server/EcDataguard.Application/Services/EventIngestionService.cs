@@ -26,7 +26,10 @@ public sealed record EventInput(
     DbEngine? DbEngine,
     string? DbHost,
     int? DbPort,
-    string? Detail);
+    string? Detail,
+    Guid? AppliedPolicyId = null,
+    PolicyAction? AppliedAction = null,
+    bool? Blocked = null);
 
 public sealed class EventIngestionService : IEventIngestionService
 {
@@ -111,7 +114,13 @@ public sealed class EventIngestionService : IEventIngestionService
             };
 
             var policy = PolicyEvaluator.FirstMatch(policies, draft, classifications);
-            if (policy is not null)
+            if (input.AppliedPolicyId.HasValue)
+            {
+                draft.AppliedPolicyId = input.AppliedPolicyId;
+                draft.AppliedAction = input.AppliedAction;
+                draft.Blocked = input.Blocked ?? false;
+            }
+            else if (policy is not null)
             {
                 draft.AppliedPolicyId = policy.Id;
                 draft.AppliedAction = policy.Action;

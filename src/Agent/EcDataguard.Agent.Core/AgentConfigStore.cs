@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using EcDataguard.Contracts.Common;
+using EcDataguard.Contracts.Policies;
 
 namespace EcDataguard.Agent;
 
@@ -61,6 +62,39 @@ public class AgentConfigStore
         var path = Path.Combine(Path.GetDirectoryName(_path)!, "policies.json");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, policiesJson);
+    }
+
+    public PolicySet? LoadPolicies()
+    {
+        var path = Path.Combine(Path.GetDirectoryName(_path)!, "policies.json");
+        if (!File.Exists(path)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<PolicySet>(File.ReadAllText(path), SetOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static readonly JsonSerializerOptions SetOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
+
+    public bool ApplyPolicySet(PolicySet set)
+    {
+        var current = LoadPolicies();
+        var next = JsonSerializer.Serialize(set, SetOptions);
+        if (current is not null && JsonSerializer.Serialize(current, SetOptions) == next)
+        {
+            return false;
+        }
+        SavePolicies(next);
+        return true;
     }
 }
 

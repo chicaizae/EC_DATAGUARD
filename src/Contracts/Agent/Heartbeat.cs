@@ -49,6 +49,9 @@ public class ServerRuntimeConfig
     public int PolicySetVersion { get; set; }
     public int HeartbeatIntervalSeconds { get; set; }
     public bool CollectDatabases { get; set; } = true;
+
+    /// <summary>Políticas activas del tenant para evaluación local en el agente.</summary>
+    public Contracts.Policies.PolicySet? PolicySet { get; set; }
 }
 
 public class HeartbeatResponse

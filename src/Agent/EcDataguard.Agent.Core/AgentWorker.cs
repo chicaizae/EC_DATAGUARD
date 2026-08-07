@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using EcDataguard.Contracts.Agent;
 using EcDataguard.Contracts.Common;
+using EcDataguard.Contracts.Policies;
 using EcDataguard.Agent.Monitoring;
 
 namespace EcDataguard.Agent;
@@ -108,7 +109,7 @@ public class AgentWorker : BackgroundService
 
         var response = await _client.HeartbeatAsync(heartbeat, ct);
 
-        await ApplyServerConfigurationAsync(response.Config);
+        ApplyServerConfigurationAsync(response.Config);
 
         if (response.Commands != null)
         {
@@ -133,20 +134,42 @@ public class AgentWorker : BackgroundService
         var events = _monitor.Drain();
         if (events.Count == 0) return;
 
+        var policies = _store.LoadPolicies()?.Policies ?? new();
+        var applied = 0;
+        foreach (var evt in events)
+        {
+            var policy = LocalPolicyEngine.FindFirstMatch(policies, evt);
+            LocalPolicyEngine.ApplyPolicy(policy, evt);
+            if (policy is not null) applied++;
+        }
+
+        if (applied > 0)
+        {
+            _logger.LogInformation("Evaluación local de políticas: {Applied}/{Total} eventos con política aplicada.",
+                applied, events.Count);
+        }
+
         var ack = await _client.SendEventsAsync(new EventBatchRequest { Events = events.ToList() }, ct);
         _logger.LogInformation("Actividad DLP enviada: {Count} eventos (aceptados {Accepted}, rechazados {Rejected}).",
             events.Count, ack.Accepted, ack.Rejected);
     }
 
-    private Task ApplyServerConfigurationAsync(ServerRuntimeConfig? config)
+    private void ApplyServerConfigurationAsync(ServerRuntimeConfig? config)
     {
-        if (config == null) return Task.CompletedTask;
+        if (config == null) return;
+        if (config.PolicySet != null)
+        {
+            if (_store.ApplyPolicySet(config.PolicySet))
+            {
+                _logger.LogInformation("Políticas del servidor aplicadas localmente (versión {Version}).",
+                    config.PolicySetVersion);
+            }
+        }
         if (config.PolicySetVersion != _config.PolicySetVersion)
         {
             _config.PolicySetVersion = config.PolicySetVersion;
             _store.Save(_config);
         }
-        return Task.CompletedTask;
     }
 
     private async Task SendNewDatabaseEventsAsync(IReadOnlyList<DbArtifactInfo> databases, CancellationToken ct)

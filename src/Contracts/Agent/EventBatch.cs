@@ -33,6 +33,11 @@ public class EventReport
 
     public DbArtifactInfo? DbArtifact { get; set; }
     public string? Detail { get; set; }
+
+    /// <summary>Política aplicada localmente por el agente (si evaluó el evento).</summary>
+    public string? PolicyId { get; set; }
+    public PolicyEngineAction? AppliedAction { get; set; }
+    public bool Blocked { get; set; }
 }
 
 public class EventBatchRequest

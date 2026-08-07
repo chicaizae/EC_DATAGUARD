@@ -8,6 +8,8 @@ namespace EcDataguard.Agent;
 
 public class AgentClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
+
     private readonly HttpClient _http;
     private readonly AgentConfig _config;
 
@@ -15,6 +17,13 @@ public class AgentClient
     {
         _http = http;
         _config = config;
+    }
+
+    private static JsonSerializerOptions CreateJsonOptions()
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        return options;
     }
 
     public async Task<HeartbeatResponse> HeartbeatAsync(HeartbeatRequest request, CancellationToken ct)
@@ -44,7 +53,7 @@ public class AgentClient
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"{_config.ServerUrl.TrimEnd('/')}{path}")
         {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+            Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.DeviceToken);
 
@@ -64,7 +73,7 @@ public class AgentClient
         {
             return default!;
         }
-        return JsonSerializer.Deserialize<TResponse>(content) ?? default!;
+        return JsonSerializer.Deserialize<TResponse>(content, JsonOptions) ?? default!;
     }
 
     private static string Truncate(string value, int max = 300)
