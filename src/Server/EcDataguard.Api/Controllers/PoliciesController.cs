@@ -106,6 +106,21 @@ public class PoliciesController : BaseConsoleController
         return Ok(new { ok = true });
     }
 
+    [HttpDelete("tenants/{tenantId:guid}/policies/{policyId:guid}")]
+    [Authorize(Policy = AuthClaims.SuperAdminPolicy)]
+    public async Task<IActionResult> Delete(Guid tenantId, Guid policyId, CancellationToken ct)
+    {
+        GuardTenant(tenantId);
+        var policy = await _db.Policies.FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == policyId, ct);
+        if (policy is null) return NotFound();
+
+        _db.Policies.Remove(policy);
+        await _db.SaveChangesAsync(ct);
+
+        await _trail.RecordAsync(tenantId, null, CurrentActorName(), "Policies", $"Eliminada política: {policy.Name}", "{}", ct);
+        return Ok(new { ok = true });
+    }
+
     private void GuardTenant(Guid tenantId)
     {
         var scope = EffectiveTenantScopeOrNull();

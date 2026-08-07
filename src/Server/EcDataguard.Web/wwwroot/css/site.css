@@ -296,3 +296,16 @@ button.mini {
     margin-right: 6px;
 }
 button.mini.danger { color: var(--bad); }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+.tags .tag {
+    background: var(--card, #1a2238);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: .82rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.tags .tag a { cursor: pointer; color: var(--bad); font-weight: bold; text-decoration: none; }

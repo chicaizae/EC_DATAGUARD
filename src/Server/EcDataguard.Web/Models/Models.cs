@@ -73,6 +73,17 @@ public record PolicyDto(
     string ConditionsJson,
     int Revision);
 
+public record UpsertPolicyRequest(
+    string Name,
+    string? Description,
+    string Kind,
+    bool Enabled,
+    int Priority,
+    string Action,
+    string? ConditionsJson,
+    string? ScopeJson,
+    string? InsightTrigger);
+
 public record InsightDto(Guid Id, string Severity, string Status, string Reason, int RelatedEventCount, DateTimeOffset? LastActivityUtc, DateTimeOffset? CreatedUtc);
 
 public record AdminTrailDto(Guid Id, Guid? TenantId, string ActorName, string Section, string Activity, DateTimeOffset OccurredUtc);

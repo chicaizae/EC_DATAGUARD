@@ -6,31 +6,160 @@
 <h1>Políticas</h1>
 <p class="muted">Se evalúan de arriba hacia abajo; aplica la primera coincidencia.</p>
 
-@if (api.Session.IsAuthenticated)
+@if (api.Session.IsAuthenticated && api.Session.ScopeTenantId != null)
 {
+    <div class="panel">
+        <h3>@(editando ? "Editar política" : "Nueva política")</h3>
+        <div class="form-row">
+            <div class="field compact">
+                <label>Nombre</label>
+                <input @bind="nombre" placeholder="Ej. Bloquear tarjetas a USB" />
+            </div>
+            <div class="field compact">
+                <label>Tipo</label>
+                <select @bind="tipo">
+                    <option value="Data">Datos</option>
+                    <option value="Application">Aplicación</option>
+                    <option value="Website">Sitio web</option>
+                    <option value="ExternalDevice">Dispositivo externo</option>
+                    <option value="Auditing">Auditoría</option>
+                </select>
+            </div>
+            <div class="field compact">
+                <label>Acción</label>
+                <select @bind="accion">
+                    <option value="Allow">Permitir</option>
+                    <option value="Log">Solo registrar</option>
+                    <option value="Notify">Notificar</option>
+                    <option value="Block">Bloquear</option>
+                    <option value="BlockWithOverride">Bloquear con excepción</option>
+                </select>
+            </div>
+            <div class="field compact">
+                <label>Prioridad</label>
+                <input type="number" min="1" @bind="prioridad" />
+            </div>
+            <div class="field compact">
+                <label>Insight</label>
+                <select @bind="insightTrigger">
+                    <option value="Default">Automático</option>
+                    <option value="Always">Siempre</option>
+                    <option value="Never">Nunca</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field compact">
+                <label>Destinos (vacío = todos)</label>
+                <select @bind="destinoSel" size="6">
+                    <option value="external_storage">USB / almacenamiento externo</option>
+                    <option value="clipboard">Portapapeles</option>
+                    <option value="email">Correo</option>
+                    <option value="web_upload">Web / IA</option>
+                    <option value="network_path">Carpeta de red</option>
+                    <option value="print">Impresión</option>
+                </select>
+                <button class="mini" @onclick="AgregarDestino">Agregar</button>
+            </div>
+            <div class="field compact">
+                <label>Clasificaciones (vacío = todas)</label>
+                <select @bind="clasifSel" size="6">
+                    <option value="PII">PII (cédulas, datos personales)</option>
+                    <option value="Financiero">Financiero (tarjetas)</option>
+                    <option value="Contrato">Contrato</option>
+                    <option value="Receta Medica">Receta médica</option>
+                    <option value="Confidencial">Confidencial</option>
+                    <option value="file:pdf">Archivo PDF</option>
+                </select>
+                <button class="mini" @onclick="AgregarClasif">Agregar</button>
+            </div>
+            <div class="field compact">
+                <label>Etiquetas aplicadas a la política</label>
+                <div class="tags">
+                    @foreach (var d in destinos)
+                    {
+                        <span class="tag">@d <a @onclick="() => QuitarDestino(d)">×</a></span>
+                    }
+                    @foreach (var c in clasifs)
+                    {
+                        <span class="tag">@c <a @onclick="() => QuitarClasif(c)">×</a></span>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field compact">
+                <label>Condiciones JSON (avanzado)</label>
+                <textarea @bind="condicionesJson" rows="3"></textarea>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field compact">
+                <label>
+                    <input type="checkbox" @bind="habilitada" /> Habilitada
+                </label>
+            </div>
+        </div>
+        @if (error != null) { <p class="error">@error</p> }
+        <button class="primary" @onclick="Guardar" disabled="@cargando">@(cargando ? "Guardando..." : editando ? "Guardar cambios" : "Crear política")</button>
+        @if (editando)
+        {
+            <button class="mini" @onclick="CancelarEdicion">Cancelar</button>
+        }
+    </div>
+
     <table class="table">
         <thead>
-            <tr><th>Prioridad</th><th>Nombre</th><th>Tipo</th><th>Acción</th><th>Estado</th><th>Revisión</th><th>Condiciones</th></tr>
+            <tr><th>Prioridad</th><th>Nombre</th><th>Tipo</th><th>Acción</th><th>Estado</th><th>Condiciones</th><th>Acciones</th></tr>
         </thead>
         <tbody>
-            @foreach (var p in politicas)
+            @foreach (var p in politicas.OrderBy(p => p.Priority))
             {
                 <tr>
                     <td>@p.Priority</td>
                     <td>@p.Name</td>
                     <td>@p.Kind</td>
                     <td>@p.Action</td>
-                    <td>@(p.Enabled ? "Habilitada" : "Deshabilitada")</td>
-                    <td>@p.Revision</td>
+                    <td>@(p.Enabled ? "Habilitada" : "Pausada")</td>
                     <td><code>@p.ConditionsJson</code></td>
+                    <td>
+                        <button class="mini" @onclick="@(() => Editar(p))">Editar</button>
+                        <button class="mini" @onclick="@(() => Alternar(p))">@(p.Enabled ? "Pausar" : "Habilitar")</button>
+                        <button class="mini danger" @onclick="@(() => Eliminar(p))">Eliminar</button>
+                    </td>
                 </tr>
+            }
+            @if (politicas.Count == 0)
+            {
+                <tr><td colspan="7" class="muted">No hay políticas para esta empresa.</td></tr>
             }
         </tbody>
     </table>
 }
+else
+{
+    <p class="muted">Seleccione primero una empresa.</p>
+}
 
 @code {
     private List<PolicyDto> politicas = new();
+    private List<string> destinos = new();
+    private List<string> clasifs = new();
+
+    private string nombre = string.Empty;
+    private string tipo = "Data";
+    private string accion = "Block";
+    private int prioridad = 1;
+    private string insightTrigger = "Default";
+    private bool habilitada = true;
+    private string condicionesJson = "";
+    private Guid? editandoId;
+    private bool editando => editandoId.HasValue;
+    private string? error;
+    private bool cargando;
+
+    private string destinoSel = "";
+    private string clasifSel = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -49,5 +178,110 @@
         {
             politicas = new();
         }
+    }
+
+    private string BaseUrl => $"/api/console/tenants/{api.Session.ScopeTenantId}/policies";
+
+    private void AgregarDestino()
+    {
+        if (string.IsNullOrWhiteSpace(destinoSel)) return;
+        if (destinos.All(d => d != destinoSel)) destinos.Add(destinoSel);
+        ActualizarJson();
+    }
+
+    private void AgregarClasif()
+    {
+        if (string.IsNullOrWhiteSpace(clasifSel)) return;
+        if (clasifs.All(c => c != clasifSel)) clasifs.Add(clasifSel);
+        ActualizarJson();
+    }
+
+    private void QuitarDestino(string valor)
+    {
+        destinos.Remove(valor);
+        ActualizarJson();
+    }
+
+    private void QuitarClasif(string valor)
+    {
+        clasifs.Remove(valor);
+        ActualizarJson();
+    }
+
+    private void ActualizarJson()
+    {
+        condicionesJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            destinations = destinos,
+            classifications = clasifs
+        });
+    }
+
+    private async Task Guardar()
+    {
+        cargando = true;
+        error = null;
+        try
+        {
+            var payload = new UpsertPolicyRequest(
+                nombre, null, tipo, habilitada, prioridad, accion,
+                condicionesJson, "{}", insightTrigger);
+
+            if (editando)
+            {
+                await api.PutAsync($"{BaseUrl}/{editandoId}", payload);
+            }
+            else
+            {
+                await api.PostAsync<UpsertPolicyRequest, object?>($"{BaseUrl}", payload);
+                nombre = string.Empty;
+                condicionesJson = "";
+                destinos = new();
+                clasifs = new();
+            }
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo guardar la política: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void Editar(PolicyDto p)
+    {
+        editandoId = p.Id;
+        nombre = p.Name;
+        tipo = p.Kind;
+        accion = p.Action;
+        prioridad = p.Priority;
+        habilitada = p.Enabled;
+        condicionesJson = p.ConditionsJson;
+    }
+
+    private void CancelarEdicion()
+    {
+        editandoId = null;
+        nombre = string.Empty;
+        condicionesJson = "";
+        destinos = new();
+        clasifs = new();
+    }
+
+    private async Task Alternar(PolicyDto p)
+    {
+        await api.PutAsync($"{BaseUrl}/{p.Id}", new UpsertPolicyRequest(
+            p.Name, null, p.Kind, !p.Enabled, p.Priority, p.Action, p.ConditionsJson, "{}", null));
+        await Cargar();
+    }
+
+    private async Task Eliminar(PolicyDto p)
+    {
+        await api.DeleteAsync($"{BaseUrl}/{p.Id}");
+        if (editandoId == p.Id) CancelarEdicion();
+        await Cargar();
     }
 }
