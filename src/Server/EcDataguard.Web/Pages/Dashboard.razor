@@ -1,0 +1,62 @@
+﻿@page "/"
+@inject ConsoleApiClient api
+@inject NavigationManager nav
+
+<PageTitle>Dashboard Â· EC DATAGUARD</PageTitle>
+
+@if (!api.Session.IsAuthenticated)
+{
+    <p>Redirigiendo al inicio de sesiÃ³nâ€¦</p>
+}
+else
+{
+    <h1>Dashboard</h1>
+    <p class="muted">Actualizado: @actualizado</p>
+
+    <div class="cards">
+        <div class="card"><b>@dash.TenantCount</b><span>Empresas</span></div>
+        <div class="card"><b>@dash.OnlineDevices</b><span>Equipos en lÃ­nea</span></div>
+        <div class="card good"><b>@dash.ProtectedDevices</b><span>Protegidos</span></div>
+        <div class="card warn"><b>@dash.DegradedDevices</b><span>Degradados</span></div>
+        <div class="card bad"><b>@dash.UnprotectedDevices</b><span>Sin protecciÃ³n</span></div>
+        <div class="card"><b>@dash.HighInsights</b><span>Insights High</span></div>
+        <div class="card bad"><b>@dash.BlockedEvents</b><span>Bloqueados</span></div>
+        <div class="card"><b>@dash.TotalEvents</b><span>Eventos totales</span></div>
+        <div class="card"><b>@dash.DbArtifacts</b><span>BD descubiertas</span></div>
+    </div>
+
+    <button class="primary" @onclick="Recargar">Actualizar</button>
+}
+
+@code {
+    private DashboardSnapshot dash = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    private string actualizado = "-";
+
+    private string DashPath => (api.Session.IsSuperAdmin && api.Session.ScopeTenantId == null)
+        ? "/api/console/global"
+        : "/api/console/dashboard";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Recargar();
+    }
+
+    private async Task Recargar()
+    {
+        if (!api.Session.IsAuthenticated)
+        {
+            nav.NavigateTo("/login");
+            return;
+        }
+
+        try
+        {
+            dash = (await api.GetAsync<DashboardSnapshot>(DashPath)) ?? new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            actualizado = DateTime.Now.ToString("HH:mm:ss");
+        }
+        catch
+        {
+            actualizado = "No se pudo consultar la API";
+        }
+    }
+}

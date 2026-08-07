@@ -1,0 +1,22 @@
+# Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY src/Contracts/EcDataguard.Contracts.csproj src/Contracts/
+COPY src/Server/EcDataguard.Domain/EcDataguard.Domain.csproj src/Server/EcDataguard.Domain/
+COPY src/Server/EcDataguard.Application/EcDataguard.Application.csproj src/Server/EcDataguard.Application/
+COPY src/Server/EcDataguard.Infrastructure/EcDataguard.Infrastructure.csproj src/Server/EcDataguard.Infrastructure/
+COPY src/Server/EcDataguard.Api/EcDataguard.Api.csproj src/Server/EcDataguard.Api/
+
+RUN dotnet restore src/Server/EcDataguard.Api/EcDataguard.Api.csproj
+
+COPY src/ src/
+RUN dotnet publish src/Server/EcDataguard.Api/EcDataguard.Api.csproj -c Release -o /out
+
+# Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+EXPOSE 8080
+COPY --from=build /out .
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "EcDataguard.Api.dll"]

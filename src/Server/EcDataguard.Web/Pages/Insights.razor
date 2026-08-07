@@ -1,0 +1,147 @@
+@page "/insights"
+@inject ConsoleApiClient api
+
+<PageTitle>Insights · EC DATAGUARD</PageTitle>
+
+<h1>Insights</h1>
+<p class="muted">Hallazgos generados a partir de eventos bloqueados y actividad sensible.</p>
+
+@if (api.Session.IsAuthenticated && api.Session.ScopeTenantId != null)
+{
+    <div class="panel filters">
+        <div class="field compact">
+            <label>Buscar</label>
+            <input @bind="texto" @bind:event="oninput" placeholder="razón o severidad" />
+        </div>
+        <div class="field compact">
+            <label>Severidad</label>
+            <select @bind="severidad">
+                <option value="">Todas</option>
+                @foreach (var item in severidades)
+                {
+                    <option value="@item">@item</option>
+                }
+            </select>
+        </div>
+        <div class="field compact">
+            <label>Estado</label>
+            <select @bind="estado">
+                <option value="">Todos</option>
+                @foreach (var item in estados)
+                {
+                    <option value="@item">@item</option>
+                }
+            </select>
+        </div>
+        <div class="actions">
+            <button class="primary" @onclick="Cargar">Actualizar</button>
+            <a class="button-link" href="@CsvHref" download="insights.csv">Exportar CSV</a>
+            <a class="button-link" href="@XlsxHref" download="insights.xlsx">Exportar XLSX</a>
+        </div>
+    </div>
+
+    <div class="panel triage">
+        <div class="field">
+            <label>Motivo de cierre</label>
+            <input @bind="motivoCierre" placeholder="Ej. Revisado con el responsable" />
+        </div>
+        @if (error != null) { <p class="error">@error</p> }
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr><th>Fecha</th><th>Severidad</th><th>Estado</th><th>Razón</th><th>Eventos</th><th>Última actividad</th><th>Triage</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var i in InsightsFiltrados)
+            {
+                <tr>
+                    <td>@(i.CreatedUtc?.ToLocalTime().ToString("g") ?? "-")</td>
+                    <td>@i.Severity</td>
+                    <td>@i.Status</td>
+                    <td>@i.Reason</td>
+                    <td>@i.RelatedEventCount</td>
+                    <td>@(i.LastActivityUtc?.ToLocalTime().ToString("g") ?? "-")</td>
+                    <td>
+                        @if (i.Status == "Open")
+                        {
+                            <button class="mini" @onclick="@(() => Cerrar(i))">Cerrar</button>
+                        }
+                        else
+                        {
+                            <span class="muted">Cerrado</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="muted">Seleccione primero una empresa.</p>
+}
+
+@code {
+    private List<InsightDto> insights = new();
+    private string texto = string.Empty;
+    private string severidad = string.Empty;
+    private string estado = string.Empty;
+    private string motivoCierre = string.Empty;
+    private string? error;
+
+    private IEnumerable<string> severidades => insights.Select(i => i.Severity).Distinct().OrderBy(s => s);
+    private IEnumerable<string> estados => insights.Select(i => i.Status).Distinct().OrderBy(s => s);
+
+    private IEnumerable<InsightDto> InsightsFiltrados => insights.Where(i =>
+        (string.IsNullOrWhiteSpace(severidad) || i.Severity == severidad) &&
+        (string.IsNullOrWhiteSpace(estado) || i.Status == estado) &&
+        (string.IsNullOrWhiteSpace(texto)
+            || Contains(i.Reason, texto)
+            || Contains(i.Severity, texto)
+            || Contains(i.Status, texto)));
+
+    private string CsvHref => CsvExport.DownloadHref(CsvExport.Insights(InsightsFiltrados));
+    private string XlsxHref => XlsxExport.DownloadHref(XlsxExport.Insights(InsightsFiltrados));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null) return;
+        try
+        {
+            insights = (await api.GetAsync<List<InsightDto>>($"/api/console/tenants/{scope}/insights")) ?? new();
+        }
+        catch
+        {
+            insights = new();
+        }
+    }
+
+    private async Task Cerrar(InsightDto insight)
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null) return;
+        error = null;
+        try
+        {
+            await api.PostAsync<CloseInsightRequest, JsonElement>(
+                $"/api/console/tenants/{scope}/insights/{insight.Id}/close",
+                new CloseInsightRequest(motivoCierre));
+            motivoCierre = string.Empty;
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo cerrar el insight: {ex.Message}";
+        }
+    }
+
+    private static bool Contains(string? value, string filter)
+        => value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
+}

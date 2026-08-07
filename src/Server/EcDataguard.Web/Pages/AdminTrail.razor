@@ -1,0 +1,102 @@
+@page "/admin-trail"
+@inject ConsoleApiClient api
+
+<PageTitle>Admin trail · EC DATAGUARD</PageTitle>
+
+<h1>Admin trail</h1>
+<p class="muted">Trazabilidad de las acciones realizadas en la consola.</p>
+
+@if (api.Session.IsAuthenticated)
+{
+    <div class="panel filters">
+        <div class="field compact">
+            <label>Buscar</label>
+            <input @bind="texto" @bind:event="oninput" placeholder="actor, sección, actividad" />
+        </div>
+        <div class="field compact">
+            <label>Sección</label>
+            <select @bind="seccion">
+                <option value="">Todas</option>
+                @foreach (var item in secciones)
+                {
+                    <option value="@item">@item</option>
+                }
+            </select>
+        </div>
+        <div class="field compact">
+            <label>Límite</label>
+            <select @bind="limite">
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button class="primary" @onclick="Cargar">Actualizar</button>
+            <a class="button-link" href="@CsvHref" download="admin-trail.csv">Exportar CSV</a>
+            <a class="button-link" href="@XlsxHref" download="admin-trail.xlsx">Exportar XLSX</a>
+        </div>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr><th>Fecha</th><th>Actor</th><th>Sección</th><th>Actividad</th><th>Empresa</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var a in EntradasFiltradas)
+            {
+                <tr>
+                    <td>@a.OccurredUtc.ToLocalTime().ToString("g")</td>
+                    <td>@a.ActorName</td>
+                    <td>@a.Section</td>
+                    <td>@a.Activity</td>
+                    <td>@a.TenantId</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="muted">Debe iniciar sesión.</p>
+}
+
+@code {
+    private List<AdminTrailDto> entradas = new();
+    private string texto = string.Empty;
+    private string seccion = string.Empty;
+    private int limite = 200;
+
+    private IEnumerable<string> secciones => entradas.Select(e => e.Section).Distinct().OrderBy(s => s);
+
+    private IEnumerable<AdminTrailDto> EntradasFiltradas => entradas.Where(a =>
+        (string.IsNullOrWhiteSpace(seccion) || a.Section == seccion) &&
+        (string.IsNullOrWhiteSpace(texto)
+            || Contains(a.ActorName, texto)
+            || Contains(a.Section, texto)
+            || Contains(a.Activity, texto)
+            || Contains(a.TenantId?.ToString(), texto)));
+
+    private string CsvHref => CsvExport.DownloadHref(CsvExport.AdminTrail(EntradasFiltradas));
+    private string XlsxHref => XlsxExport.DownloadHref(XlsxExport.AdminTrail(EntradasFiltradas));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        try
+        {
+            entradas = (await api.GetAsync<List<AdminTrailDto>>($"/api/console/admin-trail?limit={limite}")) ?? new();
+        }
+        catch
+        {
+            entradas = new();
+        }
+    }
+
+    private static bool Contains(string? value, string filter)
+        => value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
+}

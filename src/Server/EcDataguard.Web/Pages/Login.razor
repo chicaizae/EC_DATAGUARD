@@ -1,0 +1,64 @@
+@page "/login"
+@inject ConsoleApiClient api
+@inject NavigationManager nav
+
+<div class="login-card">
+    <h1>EC DATAGUARD</h1>
+    <p class="muted">Centro de mando multiempresa</p>
+
+    <EditForm Model="model" OnValidSubmit="Entrar">
+        <div class="field">
+            <label>Correo</label>
+            <InputText @bind-Value="model.Email" />
+        </div>
+        <div class="field">
+            <label>Contraseña</label>
+            <InputText type="password" @bind-Value="model.Password" />
+        </div>
+
+        @if (error != null)
+        {
+            <p class="error">@error</p>
+        }
+
+        <button type="submit" class="primary" disabled="@cargando">@(cargando ? "Ingresando..." : "Ingresar")</button>
+    </EditForm>
+</div>
+
+@code {
+    private class LoginModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private readonly LoginModel model = new();
+    private string? error;
+    private bool cargando;
+
+    private async Task Entrar()
+    {
+        cargando = true;
+        error = null;
+        try
+        {
+            var ok = await api.LoginAsync(model.Email, model.Password);
+            if (ok)
+            {
+                nav.NavigateTo("/");
+            }
+            else
+            {
+                error = "Credenciales inválidas.";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Error de conexión con la API: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

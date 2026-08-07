@@ -1,0 +1,63 @@
+@page "/eventos/{EventId:guid}"
+@inject ConsoleApiClient api
+
+<PageTitle>Detalle de evento · EC DATAGUARD</PageTitle>
+
+<h1>Detalle de evento</h1>
+
+@if (evento is null)
+{
+    <p class="muted">Cargando evento...</p>
+}
+else
+{
+    <div class="panel detail-grid">
+        <div><span>Fecha</span><b>@evento.OccurredUtc.ToLocalTime().ToString("g")</b></div>
+        <div><span>Tipo</span><b>@evento.Kind</b></div>
+        <div><span>Usuario</span><b>@(evento.UserName ?? "-")</b></div>
+        <div><span>Proceso</span><b>@(evento.ProcessName ?? "-")</b></div>
+        <div><span>Operación</span><b>@(evento.Operation ?? "-")</b></div>
+        <div><span>Bloqueado</span><b class="@(evento.Blocked ? "error" : "ok")">@(evento.Blocked ? "Sí" : "No")</b></div>
+        <div><span>Acción política</span><b>@(evento.PolicyAction ?? "-")</b></div>
+        <div><span>Clasificaciones</span><b>@(evento.Classifications ?? "-")</b></div>
+    </div>
+
+    <div class="panel">
+        <h3>Archivo / destino</h3>
+        <p><b>Archivo:</b> @(evento.FilePath ?? "-")</p>
+        <p><b>Tamaño:</b> @evento.FileSizeBytes bytes</p>
+        <p><b>Hash:</b> @(evento.FileHash ?? "-")</p>
+        <p><b>Destino:</b> @(evento.DestinationType ?? "-") / @(evento.DestinationDetail ?? "-")</p>
+        <p><b>BD:</b> @(evento.DbEngine ?? "-") @(evento.DbHost ?? "") @(evento.DbPort?.ToString() ?? "")</p>
+        <p><b>Detalle:</b> @(evento.Detail ?? "-")</p>
+        <p><b>ExternalId:</b> @evento.ExternalId</p>
+    </div>
+}
+
+@if (error != null) { <p class="error">@error</p> }
+
+@code {
+    [Parameter] public Guid EventId { get; set; }
+
+    private EventDto? evento;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null)
+        {
+            error = "Seleccione una empresa.";
+            return;
+        }
+
+        try
+        {
+            evento = await api.GetAsync<EventDto>($"/api/console/tenants/{scope}/events/{EventId}");
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo cargar el evento: {ex.Message}";
+        }
+    }
+}

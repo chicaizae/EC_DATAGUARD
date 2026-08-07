@@ -1,0 +1,107 @@
+@page "/eventos"
+@inject ConsoleApiClient api
+
+<PageTitle>Eventos · EC DATAGUARD</PageTitle>
+
+<h1>Eventos</h1>
+
+@if (api.Session.IsAuthenticated && api.Session.ScopeTenantId != null)
+{
+    <div class="panel filters">
+        <div class="field compact">
+            <label>Buscar</label>
+            <input @bind="texto" @bind:event="oninput" placeholder="usuario, operación, archivo, destino" />
+        </div>
+        <div class="field compact">
+            <label>Tipo</label>
+            <select @bind="tipo">
+                <option value="">Todos</option>
+                @foreach (var kind in tipos)
+                {
+                    <option value="@kind">@kind</option>
+                }
+            </select>
+        </div>
+        <div class="field compact">
+            <label>Bloqueado</label>
+            <select @bind="bloqueado">
+                <option value="">Todos</option>
+                <option value="true">Sí</option>
+                <option value="false">No</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button class="primary" @onclick="Cargar">Actualizar</button>
+            <a class="button-link" href="@CsvHref" download="eventos.csv">Exportar CSV</a>
+            <a class="button-link" href="@XlsxHref" download="eventos.xlsx">Exportar XLSX</a>
+        </div>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr><th>Fecha</th><th>Tipo</th><th>Usuario</th><th>Operación</th><th>Archivo / Destino</th><th>Bloqueado</th><th>Acción</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var e in EventosFiltrados)
+            {
+                <tr>
+                    <td><a class="inline-link" href="/eventos/@e.Id">@e.OccurredUtc.ToLocalTime().ToString("g")</a></td>
+                    <td>@e.Kind</td>
+                    <td>@e.UserName</td>
+                    <td>@e.Operation</td>
+                    <td title="@e.FilePath">@(e.FilePath ?? e.DestinationType)</td>
+                    <td>@(e.Blocked ? "Sí" : "No")</td>
+                    <td>@e.PolicyAction</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="muted">Seleccione primero una empresa.</p>
+}
+
+@code {
+    private List<EventDto> eventos = new();
+    private string texto = string.Empty;
+    private string tipo = string.Empty;
+    private string bloqueado = string.Empty;
+
+    private IEnumerable<string> tipos => eventos.Select(e => e.Kind).Distinct().OrderBy(k => k);
+
+    private IEnumerable<EventDto> EventosFiltrados => eventos.Where(e =>
+        (string.IsNullOrWhiteSpace(tipo) || e.Kind == tipo) &&
+        (string.IsNullOrWhiteSpace(bloqueado) || e.Blocked == bool.Parse(bloqueado)) &&
+        (string.IsNullOrWhiteSpace(texto)
+            || Contains(e.UserName, texto)
+            || Contains(e.Operation, texto)
+            || Contains(e.FilePath, texto)
+            || Contains(e.DestinationType, texto)
+            || Contains(e.PolicyAction, texto)));
+
+    private string CsvHref => CsvExport.DownloadHref(CsvExport.Events(EventosFiltrados));
+    private string XlsxHref => XlsxExport.DownloadHref(XlsxExport.Events(EventosFiltrados));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null) return;
+        try
+        {
+            eventos = (await api.GetAsync<List<EventDto>>($"/api/console/tenants/{scope}/events?limit=100")) ?? new();
+        }
+        catch
+        {
+            eventos = new();
+        }
+    }
+
+    private static bool Contains(string? value, string filter)
+        => value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
+}

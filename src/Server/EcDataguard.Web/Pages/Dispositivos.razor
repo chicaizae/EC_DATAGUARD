@@ -1,0 +1,172 @@
+@page "/dispositivos"
+@inject ConsoleApiClient api
+@inject NavigationManager nav
+
+<PageTitle>Dispositivos · EC DATAGUARD</PageTitle>
+
+@if (!api.Session.IsAuthenticated)
+{
+    <p>Debe iniciar sesión.</p>
+}
+else
+{
+    <h1>Dispositivos</h1>
+
+    @if (tenantScope != null)
+    {
+        <div class="row form-inline">
+            <input @bind="nuevoHost" placeholder="Nombre del equipo (hostname)" />
+            <select @bind="plataforma">
+                <option value="win7">Windows 7 (x86)</option>
+                <option value="win10">Windows 10/11 (x64)</option>
+                <option value="linux">Linux (x64)</option>
+            </select>
+            <button class="primary" @onclick="Registrar">Registrar equipo + instalador</button>
+        </div>
+        @if (instalador != null)
+        {
+            <div class="panel">
+                <h3>Instalador del agente (SO: @instalador.FileName)</h3>
+                <p class="muted">Copie el mando en una terminal con permisos de administrador.</p>
+                <pre class="installer">@instalador.Command</pre>
+                <p>
+                    Descargar: <a href="@instalador.DownloadUrl" target="_blank">@instalador.DownloadUrl</a>
+                </p>
+                <p class="muted">Verifique el hash SHA-256 en dist/manifest.json antes de desplegar.</p>
+            </div>
+        }
+        @if (error != null) { <p class="error">@error</p> }
+
+        <table class="table">
+            <thead>
+                <tr><th>Hostname</th><th>OS</th><th>Protección</th><th>Último heartbeat</th><th>En línea</th><th>Usuario</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var d in dispositivos)
+                {
+                    <tr>
+                        <td><a class="inline-link" href="/dispositivos/@d.Id">@d.Hostname</a></td>
+                        <td>@d.Os</td>
+                        <td>@d.Protection</td>
+                        <td>@(d.LastHeartbeatUtc?.ToLocalTime().ToString("g") ?? "-")</td>
+                        <td>@(d.Online ? "Sí" : "No")</td>
+                        <td>@d.LastUser</td>
+                        <td>
+                            <button class="mini" @onclick="@(() => Mandar(d.Id, "RefreshInventory"))">Refresh</button>
+                            <button class="mini" @onclick="@(() => Mandar(d.Id, "RestartAgent"))">Restart</button>
+                            <button class="mini" @onclick="@(() => RegenerarInstalador(d))">Instalador</button>
+                            <button class="mini danger" @onclick="@(() => Revocar(d))">Revocar token</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p class="muted">Seleccione una empresa en el menú para administrar sus equipos.</p>
+    }
+}
+
+@code {
+    private Guid? tenantScope => api.Session.ScopeTenantId;
+    private List<DeviceDto> dispositivos = new();
+    private string nuevoHost = string.Empty;
+    private string plataforma = "win10";
+    private InstallerInfo? instalador;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        if (tenantScope == null) return;
+        try
+        {
+            dispositivos = (await api.GetAsync<List<DeviceDto>>($"/api/console/tenants/{tenantScope}/devices")) ?? new();
+        }
+        catch
+        {
+            dispositivos = new();
+        }
+    }
+
+    private async Task Registrar()
+    {
+        error = null;
+        instalador = null;
+
+        if (string.IsNullOrWhiteSpace(nuevoHost))
+        {
+            error = "Indique el nombre del equipo.";
+            return;
+        }
+
+        var os = plataforma == "linux" ? "Linux" : "Windows";
+        try
+        {
+            var registrado = await api.PostAsync<RegisterDeviceRequest, System.Text.Json.JsonElement>(
+                $"/api/console/tenants/{tenantScope}/devices",
+                new RegisterDeviceRequest(nuevoHost, os));
+            var deviceId = registrado.GetProperty("id").GetGuid();
+
+            instalador = await api.PostAsync<InstallerRequest, InstallerInfo>(
+                $"/api/console/tenants/{tenantScope}/devices/{deviceId}/installer",
+                new InstallerRequest(plataforma));
+
+            nuevoHost = string.Empty;
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo registrar o generar instalador: {ex.Message}";
+        }
+    }
+
+    private async Task Mandar(Guid deviceId, string kind)
+    {
+        try
+        {
+            await api.PostAsync<IssueCommandRequest, dynamic>($"/api/console/tenants/{tenantScope}/devices/{deviceId}/commands",
+                new IssueCommandRequest(kind));
+        }
+        catch
+        {
+            error = "No se pudo enviar el mandato.";
+        }
+    }
+
+    private async Task RegenerarInstalador(DeviceDto d)
+    {
+        error = null;
+        instalador = null;
+        try
+        {
+            instalador = await api.PostAsync<InstallerRequest, InstallerInfo>(
+                $"/api/console/tenants/{tenantScope}/devices/{d.Id}/installer",
+                new InstallerRequest(plataforma));
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo generar el instalador: {ex.Message}";
+        }
+    }
+
+    private async Task Revocar(DeviceDto d)
+    {
+        error = null;
+        try
+        {
+            await api.PostAsync<object, JsonElement>(
+                $"/api/console/tenants/{tenantScope}/devices/{d.Id}/token/revoke", new { });
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo revocar el token: {ex.Message}";
+        }
+    }
+}

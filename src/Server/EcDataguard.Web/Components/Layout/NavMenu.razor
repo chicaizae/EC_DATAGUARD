@@ -1,0 +1,62 @@
+<nav class="nav">
+    <NavLink href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
+    <NavLink href="/empresas">Empresas (Tenants)</NavLink>
+    <NavLink href="/dispositivos">Dispositivos</NavLink>
+    <NavLink href="/politicas">Políticas</NavLink>
+    <NavLink href="/eventos">Eventos</NavLink>
+    <NavLink href="/insights">Insights</NavLink>
+    <NavLink href="/bases">Bases de datos</NavLink>
+    <NavLink href="/admin-trail">Admin trail</NavLink>
+
+    <div class="nav-spacer"></div>
+    <div class="scope">
+        <label>Alcance:</label>
+        <select value="@_selectedTenantId" @onchange="OnScopeChange">
+            <option value="">Todas las empresas</option>
+            @foreach (var tenant in _tenants)
+            {
+                <option value="@tenant.Id">@tenant.Nombre</option>
+            }
+        </select>
+    </div>
+    <button class="logout" @onclick="Logout">Salir</button>
+</nav>
+
+@code {
+    [Inject] private ConsoleApiClient api { get; set; } = default!;
+    [Inject] private NavigationManager nav { get; set; } = default!;
+
+    private List<TenantDto> _tenants = new();
+    private Guid? _selectedTenantId => api.Session.ScopeTenantId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!api.Session.IsAuthenticated)
+        {
+            nav.NavigateTo("/login");
+            return;
+        }
+
+        try
+        {
+            _tenants = (await api.GetAsync<List<TenantDto>>("/api/console/tenants")) ?? new();
+        }
+        catch
+        {
+            _tenants = new();
+        }
+    }
+
+    private void OnScopeChange(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        Guid? parsed = Guid.TryParse(value, out var id) ? id : null;
+        api.SetScope(parsed);
+    }
+
+    private void Logout()
+    {
+        api.Session.Clear();
+        nav.NavigateTo("/login");
+    }
+}

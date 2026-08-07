@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<div class="shell">
+    <aside class="sidebar">
+        <div class="brand">EC <b>DATAGUARD</b></div>
+        <NavMenu />
+    </aside>
+    <main class="content">
+        <div class="topbar">
+            <span class="title">Centro de mando · Multiempresa</span>
+            <span class="user">@(api.Session.Email ?? "Sin sesión")</span>
+        </div>
+        @Body
+    </main>
+</div>
+
+@code {
+    [Inject] private ConsoleApiClient api { get; set; } = default!;
+}

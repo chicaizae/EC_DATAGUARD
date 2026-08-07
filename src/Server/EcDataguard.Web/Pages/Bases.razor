@@ -1,0 +1,58 @@
+@page "/bases"
+@inject ConsoleApiClient api
+
+<PageTitle>Bases de datos · EC DATAGUARD</PageTitle>
+
+<h1>Bases de datos descubiertas</h1>
+<p class="muted">Resultado del inventario de servidores reportado por los agentes.</p>
+
+@if (api.Session.IsAuthenticated && api.Session.ScopeTenantId != null)
+{
+    <table class="table">
+        <thead>
+            <tr><th>Equipo</th><th>Motor</th><th>Host</th><th>Puerto</th><th>Instancia</th><th>Alcanzable</th><th>Descubierta</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var a in artefactos)
+            {
+                <tr>
+                    <td>@a.DeviceId</td>
+                    <td>@a.Engine</td>
+                    <td>@a.Host</td>
+                    <td>@a.Port</td>
+                    <td>@a.Instance</td>
+                    <td>@(a.Reachable ? "Sí" : "No")</td>
+                    <td>@a.DiscoveredUtc.LocalDateTime.ToString("g")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button class="primary" @onclick="Cargar">Actualizar</button>
+}
+else
+{
+    <p class="muted">Seleccione una empresa para ver su inventario.</p>
+}
+
+@code {
+    private List<DbArtifactDto> artefactos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null) return;
+        try
+        {
+            artefactos = (await api.GetAsync<List<DbArtifactDto>>($"/api/console/tenants/{scope}/databases")) ?? new();
+        }
+        catch
+        {
+            artefactos = new();
+        }
+    }
+}

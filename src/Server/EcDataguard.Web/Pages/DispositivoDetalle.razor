@@ -1,0 +1,81 @@
+@page "/dispositivos/{DeviceId:guid}"
+@inject ConsoleApiClient api
+
+<PageTitle>Detalle de dispositivo · EC DATAGUARD</PageTitle>
+
+<h1>Detalle de dispositivo</h1>
+
+@if (device is null)
+{
+    <p class="muted">Cargando dispositivo...</p>
+}
+else
+{
+    <div class="panel detail-grid">
+        <div><span>Hostname</span><b>@device.Hostname</b></div>
+        <div><span>OS</span><b>@device.Os @(device.OsVersion ?? "")</b></div>
+        <div><span>Agente</span><b>@device.AgentVersion</b></div>
+        <div><span>Protección</span><b>@device.Protection</b></div>
+        <div><span>Último heartbeat</span><b>@(device.LastHeartbeatUtc?.ToLocalTime().ToString("g") ?? "-")</b></div>
+        <div><span>En línea</span><b class="@(device.Online ? "ok" : "error")">@(device.Online ? "Sí" : "No")</b></div>
+        <div><span>Usuario</span><b>@(device.LastUser ?? "-")</b></div>
+        <div><span>IP</span><b>@(device.IpAddress ?? "-")</b></div>
+        <div><span>Creado</span><b>@(device.CreatedUtc?.ToLocalTime().ToString("g") ?? "-")</b></div>
+    </div>
+
+    <div class="panel">
+        <h3>Detalles de protección</h3>
+        <p>@(string.IsNullOrWhiteSpace(device.ProtectionDetails) ? "Sin detalles adicionales." : device.ProtectionDetails)</p>
+    </div>
+
+    <div class="panel">
+        <h3>Bases de datos detectadas</h3>
+        <table class="table">
+            <thead><tr><th>Motor</th><th>Host</th><th>Puerto</th><th>Instancia</th><th>Reachable</th><th>Detectado</th></tr></thead>
+            <tbody>
+                @foreach (var db in artifacts)
+                {
+                    <tr>
+                        <td>@db.Engine</td>
+                        <td>@db.Host</td>
+                        <td>@db.Port</td>
+                        <td>@db.Instance</td>
+                        <td>@(db.Reachable ? "Sí" : "No")</td>
+                        <td>@db.DiscoveredUtc.ToLocalTime().ToString("g")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (error != null) { <p class="error">@error</p> }
+
+@code {
+    [Parameter] public Guid DeviceId { get; set; }
+
+    private DeviceDto? device;
+    private List<DbArtifactDto> artifacts = new();
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null)
+        {
+            error = "Seleccione una empresa.";
+            return;
+        }
+
+        try
+        {
+            device = await api.GetAsync<DeviceDto>($"/api/console/tenants/{scope}/devices/{DeviceId}");
+            var all = await api.GetAsync<List<DbArtifactDto>>($"/api/console/tenants/{scope}/databases") ?? new();
+            artifacts = all.Where(a => a.DeviceId == DeviceId).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo cargar el dispositivo: {ex.Message}";
+        }
+    }
+}

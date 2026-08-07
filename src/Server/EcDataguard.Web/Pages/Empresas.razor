@@ -1,0 +1,98 @@
+@page "/empresas"
+@inject ConsoleApiClient api
+@inject NavigationManager nav
+
+<PageTitle>Empresas · EC DATAGUARD</PageTitle>
+
+@if (!api.Session.IsAuthenticated)
+{
+    <p>Debe iniciar sesión.</p>
+}
+else
+{
+    <h1>Empresas (tenants)</h1>
+
+    @if (api.Session.IsSuperAdmin)
+    {
+        <div class="row form-inline">
+            <input @bind="nuevoCodigo" placeholder="Código (ej. EMP01)" />
+            <input @bind="nuevoNombre" placeholder="Nombre de la empresa" />
+            <select @bind="nuevoPlan">
+                <option>Standard</option>
+                <option>Premium</option>
+                <option>Enterprise</option>
+            </select>
+            <button class="primary" @onclick="Crear">Crear empresa</button>
+        </div>
+        @if (mensaje != null) { <p class="ok">@mensaje</p> }
+        @if (error != null) { <p class="error">@error</p> }
+    }
+
+    <table class="table">
+        <thead>
+            <tr><th>Código</th><th>Nombre</th><th>Plan</th><th>Activo</th><th>Dispositivos</th><th>Usuarios activos</th><th>Consumo</th><th>Estado licencia</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var t in tenants)
+            {
+                <tr>
+                    <td>@t.Codigo</td>
+                    <td>@t.Nombre</td>
+                    <td>@t.Plan</td>
+                    <td>@(t.Activo ? "Sí" : "No")</td>
+                    <td>@t.Dispositivos</td>
+                    <td>@t.ActiveUsers / @t.LicensedUserLimit</td>
+                    <td>@t.UsagePercent%</td>
+                    <td class="@(t.OverLimit ? "error" : "ok")">@(t.OverLimit ? "Sobre límite" : "OK")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TenantDto> tenants = new();
+    private string nuevoCodigo = string.Empty;
+    private string nuevoNombre = string.Empty;
+    private string nuevoPlan = "Enterprise";
+    private string? mensaje;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        try
+        {
+            tenants = (await api.GetAsync<List<TenantDto>>("/api/console/tenants")) ?? new();
+        }
+        catch
+        {
+            tenants = new();
+            error = "No se pudo cargar la lista de empresas.";
+        }
+    }
+
+    private async Task Crear()
+    {
+        error = null;
+        mensaje = null;
+        try
+        {
+            var result = await api.PostAsync<CreateTenantRequest, TenantDto>(
+                "/api/console/tenants",
+                new CreateTenantRequest(nuevoCodigo, nuevoNombre, nuevoPlan));
+            mensaje = $"Empresa creada: {result?.Nombre}";
+            nuevoCodigo = string.Empty;
+            nuevoNombre = string.Empty;
+            await Cargar();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo crear la empresa: {ex.Message}";
+        }
+    }
+}

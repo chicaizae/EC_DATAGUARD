@@ -1,0 +1,53 @@
+@page "/politicas"
+@inject ConsoleApiClient api
+
+<PageTitle>Políticas · EC DATAGUARD</PageTitle>
+
+<h1>Políticas</h1>
+<p class="muted">Se evalúan de arriba hacia abajo; aplica la primera coincidencia.</p>
+
+@if (api.Session.IsAuthenticated)
+{
+    <table class="table">
+        <thead>
+            <tr><th>Prioridad</th><th>Nombre</th><th>Tipo</th><th>Acción</th><th>Estado</th><th>Revisión</th><th>Condiciones</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var p in politicas)
+            {
+                <tr>
+                    <td>@p.Priority</td>
+                    <td>@p.Name</td>
+                    <td>@p.Kind</td>
+                    <td>@p.Action</td>
+                    <td>@(p.Enabled ? "Habilitada" : "Deshabilitada")</td>
+                    <td>@p.Revision</td>
+                    <td><code>@p.ConditionsJson</code></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<PolicyDto> politicas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        var scope = api.Session.ScopeTenantId;
+        if (scope == null) return;
+        try
+        {
+            politicas = (await api.GetAsync<List<PolicyDto>>($"/api/console/tenants/{scope}/policies")) ?? new();
+        }
+        catch
+        {
+            politicas = new();
+        }
+    }
+}

@@ -1,0 +1,44 @@
+# Build
+bin/
+obj/
+out/
+artifacts/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Logs
+*.log
+logs/
+
+# Env / secrets
+deploy/.env
+*.pfx
+*.p12
+secrets.json
+
+# OS
+Thumbs.db
+.DS_Store
+
+# NuGet
+*.nupkg
+packages/
+
+# Test results
+TestResults/
+coverage/
+
+# Agent local data
+agent-data/
+config.local.json
+
+# Local development databases
+data/
+*.db
+*.db-shm
+*.db-wal

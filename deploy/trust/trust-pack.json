@@ -1,0 +1,10 @@
+{
+  "product": "EcDataguard Agent",
+  "version": "1.0.0",
+  "signer": "Ecoilpet S.A.",
+  "serviceName": "EcDataguardAgentSvc",
+  "xdrCompatible": true,
+  "fingerprint": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  "modes": ["polling", "push"],
+  "notes": "Trust pack de compatibilidad con Sophos XDR (fase 2). El fingerprint SHA-256 se hace efectivo al firmar los binarios del agente."
+}
